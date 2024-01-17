@@ -1,4 +1,5 @@
 import argparse
+import ast
 import collections
 import json
 import logging
@@ -14,7 +15,7 @@ from .php import PHP
 from .model import (TRUNK_COLOR, LEAF_COLOR, NODE_COLOR, GROUP_TYPE, OWNER_CONST,
                     Edge, Group, Node, Variable, is_installed, flatten)
 
-VERSION = '2.5.1'
+VERSION = '2.5.2'
 
 IMAGE_EXTENSIONS = ('png', 'svg')
 TEXT_EXTENSIONS = ('dot', 'gv', 'json')
@@ -22,7 +23,6 @@ VALID_EXTENSIONS = IMAGE_EXTENSIONS + TEXT_EXTENSIONS
 
 DESCRIPTION = "Generate flow charts from your source code. " \
               "See the README at https://github.com/scottrogowski/code2flow."
-
 
 LEGEND = """subgraph legend{
     rank = min;
@@ -38,7 +38,6 @@ LEGEND = """subgraph legend{
         >];
 }""" % (NODE_COLOR, TRUNK_COLOR, LEAF_COLOR)
 
-
 LANGUAGES = {
     'py': Python,
     'js': Javascript,
@@ -52,6 +51,7 @@ class LanguageParams():
     """
     Shallow structure to make storing language-specific parameters cleaner
     """
+
     def __init__(self, source_type='script', ruby_version='27'):
         self.source_type = source_type
         self.ruby_version = ruby_version
@@ -61,6 +61,7 @@ class SubsetParams():
     """
     Shallow structure to make storing subset-specific parameters cleaner.
     """
+
     def __init__(self, target_function, upstream_depth, downstream_depth):
         self.target_function = target_function
         self.upstream_depth = upstream_depth
@@ -95,7 +96,6 @@ class SubsetParams():
         return SubsetParams(target_function, upstream_depth, downstream_depth)
 
 
-
 def _find_target_node(subset_params, all_nodes):
     """
     Find the node referenced by subset_params.target_function
@@ -106,8 +106,8 @@ def _find_target_node(subset_params, all_nodes):
     target_nodes = []
     for node in all_nodes:
         if node.token == subset_params.target_function or \
-           node.token_with_ownership() == subset_params.target_function or \
-           node.name() == subset_params.target_function:
+                node.token_with_ownership() == subset_params.target_function or \
+                node.name() == subset_params.target_function:
             target_nodes.append(node)
     if not target_nodes:
         raise AssertionError("Could not find node %r to build a subset." % subset_params.target_function)
@@ -330,13 +330,13 @@ def get_sources_and_language(raw_source_paths, language):
     return sources, language
 
 
-def make_file_group(tree, filename, extension):
+def make_file_group(tree, filepath, extension):
     """
     Given an AST for the entire file, generate a file group complete with
     subgroups, nodes, etc.
 
     :param tree ast:
-    :param filename str:
+    :param filepath str:
     :param extension str:
 
     :rtype: Group
@@ -345,21 +345,22 @@ def make_file_group(tree, filename, extension):
 
     subgroup_trees, node_trees, body_trees = language.separate_namespaces(tree)
     group_type = GROUP_TYPE.FILE
-    token = os.path.split(filename)[-1].rsplit('.' + extension, 1)[0]
+    token = os.path.split(filepath)[-1].rsplit('.' + extension, 1)[0]
     line_number = 0
     display_name = 'File'
-    import_tokens = language.file_import_tokens(filename)
+    import_tokens = language.file_import_tokens(filepath)
 
-    file_group = Group(token, group_type, display_name, import_tokens,
-                       line_number, parent=None)
+    file_group = Group(token, group_type, display_name, import_tokens, line_number, parent=None, file_path=filepath, docstring=ast.get_docstring(tree))
+    with open(filepath, 'r') as fh:
+        file_content = fh.read()
     for node_tree in node_trees:
-        for new_node in language.make_nodes(node_tree, parent=file_group):
+        for new_node in language.make_nodes(node_tree, parent=file_group, file_content=file_content):
             file_group.add_node(new_node)
 
     file_group.add_node(language.make_root_node(body_trees, parent=file_group), is_root=True)
 
     for subgroup_tree in subgroup_trees:
-        file_group.add_subgroup(language.make_class_group(subgroup_tree, parent=file_group))
+        file_group.add_subgroup(language.make_class_group(subgroup_tree, parent=file_group, file_content=file_content))
     return file_group
 
 
@@ -397,8 +398,8 @@ def _find_link_for_call(call, node_a, all_nodes):
     else:
         for node in all_nodes:
             if call.token == node.token \
-               and isinstance(node.parent, Group)  \
-               and node.parent.group_type == GROUP_TYPE.FILE:
+                    and isinstance(node.parent, Group) \
+                    and node.parent.group_type == GROUP_TYPE.FILE:
                 possible_nodes.append(node)
             elif call.token == node.parent.token and node.is_constructor:
                 possible_nodes.append(node)
@@ -597,8 +598,8 @@ def _limit_namespaces(file_groups, exclude_namespaces, include_only_namespaces):
                     node.remove_from_parent()
                 removed_namespaces.add(subgroup.token)
             if include_only_namespaces and \
-               subgroup.token not in include_only_namespaces and \
-               all(p.token not in include_only_namespaces for p in subgroup.all_parents()):
+                    subgroup.token not in include_only_namespaces and \
+                    all(p.token not in include_only_namespaces for p in subgroup.all_parents()):
                 for node in subgroup.nodes:
                     node.remove_from_parent()
                 removed_namespaces.add(group.token)
@@ -606,7 +607,7 @@ def _limit_namespaces(file_groups, exclude_namespaces, include_only_namespaces):
     for namespace in exclude_namespaces:
         if namespace not in removed_namespaces:
             logging.warning(f"Could not exclude namespace '{namespace}' "
-                             "because it was not found.")
+                            "because it was not found.")
     return file_groups
 
 
@@ -625,14 +626,14 @@ def _limit_functions(file_groups, exclude_functions, include_only_functions):
     for group in list(file_groups):
         for node in group.all_nodes():
             if node.token in exclude_functions or \
-               (include_only_functions and node.token not in include_only_functions):
+                    (include_only_functions and node.token not in include_only_functions):
                 node.remove_from_parent()
                 removed_functions.add(node.token)
 
     for function_name in exclude_functions:
         if function_name not in removed_functions:
             logging.warning(f"Could not exclude function '{function_name}' "
-                             "because it was not found.")
+                            "because it was not found.")
     return file_groups
 
 

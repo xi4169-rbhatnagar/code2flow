@@ -191,7 +191,7 @@ class Python(BaseLanguage):
         return groups, nodes, body
 
     @staticmethod
-    def make_nodes(tree, parent):
+    def make_nodes(tree, parent, file_content=None):
         """
         Given an ast of all the lines in a function, create the node along with the
         calls and variables internal to it.
@@ -208,12 +208,17 @@ class Python(BaseLanguage):
         if parent.group_type == GROUP_TYPE.CLASS and token in ['__init__', '__new__']:
             is_constructor = True
 
+        definition = None
+        if type(tree) in (ast.FunctionDef, ast.ClassDef) and file_content is not None:
+            definition = ast.get_source_segment(file_content, tree)
+
         import_tokens = []
         if parent.group_type == GROUP_TYPE.FILE:
             import_tokens = [djoin(parent.token, token)]
 
         return [Node(token, calls, variables, parent, import_tokens=import_tokens,
-                     line_number=line_number, is_constructor=is_constructor)]
+                     line_number=line_number, is_constructor=is_constructor,
+                     token_type=type(tree), definition=definition, docstring=ast.get_docstring(tree))]
 
     @staticmethod
     def make_root_node(lines, parent):
@@ -229,10 +234,10 @@ class Python(BaseLanguage):
         line_number = 0
         calls = make_calls(lines)
         variables = make_local_variables(lines, parent)
-        return Node(token, calls, variables, line_number=line_number, parent=parent)
+        return Node(token, calls, variables, line_number=line_number, parent=parent, token_type="PackageCode")
 
     @staticmethod
-    def make_class_group(tree, parent):
+    def make_class_group(tree, parent, file_content):
         """
         Given an AST for the subgroup (a class), generate that subgroup.
         In this function, we will also need to generate all of the nodes internal
@@ -254,10 +259,11 @@ class Python(BaseLanguage):
         inherits = get_inherits(tree)
 
         class_group = Group(token, group_type, display_name, import_tokens=import_tokens,
-                            inherits=inherits, line_number=line_number, parent=parent)
+                            inherits=inherits, line_number=line_number, parent=parent, file_path=None,
+                            docstring=ast.get_docstring(tree))
 
         for node_tree in node_trees:
-            class_group.add_node(Python.make_nodes(node_tree, parent=class_group)[0])
+            class_group.add_node(Python.make_nodes(node_tree, parent=class_group, file_content=file_content)[0])
 
         for subgroup_tree in subgroup_trees:
             logging.warning("Code2flow does not support nested classes. Skipping %r in %r.",

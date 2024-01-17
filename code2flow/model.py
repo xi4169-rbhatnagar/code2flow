@@ -1,7 +1,6 @@
 import abc
 import os
 
-
 TRUNK_COLOR = '#966F33'
 LEAF_COLOR = '#6db33f'
 EDGE_COLORS = ["#000000", "#E69F00", "#56B4E9", "#009E73",
@@ -14,6 +13,7 @@ class Namespace(dict):
     Abstract constants class
     Constants can be accessed via .attribute or [key] and can be iterated over.
     """
+
     def __init__(self, *args, **kwargs):
         d = {k: k for k in args}
         d.update(dict(kwargs.items()))
@@ -150,6 +150,7 @@ class Variable():
     They may either point to a string or, once resolved, a Group/Node.
     Not all variables can be resolved
     """
+
     def __init__(self, token, points_to, line_number=None):
         """
         :param str token:
@@ -184,6 +185,7 @@ class Call():
         do_something()
 
     """
+
     def __init__(self, token, line_number=None, owner_token=None, definite_constructor=False):
         self.token = token
         self.owner_token = owner_token
@@ -237,7 +239,7 @@ class Call():
 
             # This section is specifically for resolving namespace variables
             if isinstance(variable.points_to, Group) \
-               and variable.points_to.group_type == GROUP_TYPE.NAMESPACE:
+                    and variable.points_to.group_type == GROUP_TYPE.NAMESPACE:
                 parts = self.owner_token.split('.')
                 if len(parts) != 2:
                     return None
@@ -245,7 +247,7 @@ class Call():
                     return None
                 for node in variable.points_to.all_nodes():
                     if parts[1] == node.namespace_ownership() \
-                       and self.token == node.token:
+                            and self.token == node.token:
                         return node
 
             return None
@@ -253,15 +255,15 @@ class Call():
             if isinstance(variable.points_to, Node):
                 return variable.points_to
             if isinstance(variable.points_to, Group) \
-               and variable.points_to.group_type == GROUP_TYPE.CLASS \
-               and variable.points_to.get_constructor():
+                    and variable.points_to.group_type == GROUP_TYPE.CLASS \
+                    and variable.points_to.get_constructor():
                 return variable.points_to.get_constructor()
         return None
 
 
 class Node():
-    def __init__(self, token, calls, variables, parent, import_tokens=None,
-                 line_number=None, is_constructor=False):
+    def __init__(self, token, calls, variables, parent, token_type: type, import_tokens=None,
+                 line_number=None, is_constructor=False, definition=None, docstring=None):
         self.token = token
         self.line_number = line_number
         self.calls = calls
@@ -269,6 +271,9 @@ class Node():
         self.import_tokens = import_tokens or []
         self.parent = parent
         self.is_constructor = is_constructor
+        self.token_type = token_type
+        self.definition = definition
+        self.docstring = docstring
 
         self.uid = "node_" + os.urandom(4).hex()
 
@@ -280,7 +285,7 @@ class Node():
         return f"<Node token={self.token} parent={self.parent}>"
 
     def __lt__(self, other):
-            return self.name() < other.name()
+        return self.name() < other.name()
 
     def name(self):
         """
@@ -433,6 +438,7 @@ class Node():
             'uid': self.uid,
             'label': self.label(),
             'name': self.name(),
+            'type': self.token_type,
         }
 
 
@@ -491,8 +497,9 @@ class Group():
     """
     Groups represent namespaces (classes and modules/files)
     """
+
     def __init__(self, token, group_type, display_type, import_tokens=None,
-                 line_number=None, parent=None, inherits=None):
+                 line_number=None, parent=None, inherits=None, file_path=None, docstring=None):
         self.token = token
         self.line_number = line_number
         self.nodes = []
@@ -503,6 +510,8 @@ class Group():
         self.display_type = display_type
         self.import_tokens = import_tokens or []
         self.inherits = inherits or []
+        self.file_path = file_path
+        self.docstring = docstring
         assert group_type in GROUP_TYPE
 
         self.uid = "cluster_" + os.urandom(4).hex()  # group doesn't work by syntax rules
@@ -528,6 +537,15 @@ class Group():
         if self.group_type == GROUP_TYPE.FILE:
             return self.token
         return self.parent.filename()
+
+    def filepath(self):
+        """
+        The ultimate filename of this group.
+        :rtype: str
+        """
+        if self.group_type == GROUP_TYPE.FILE:
+            return self.file_path
+        return self.parent.filepath()
 
     def add_subgroup(self, sg):
         """
