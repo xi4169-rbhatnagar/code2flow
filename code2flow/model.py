@@ -151,7 +151,7 @@ class Variable():
     Not all variables can be resolved
     """
 
-    def __init__(self, token, points_to, line_number=None):
+    def __init__(self, token, points_to, line_number=None, is_import=False):
         """
         :param str token:
         :param str|Call|Node|Group points_to: (str/Call is eventually resolved to Nodes|Groups)
@@ -162,6 +162,7 @@ class Variable():
         self.token = token
         self.points_to = points_to
         self.line_number = line_number
+        self.is_import = is_import
 
     def __repr__(self):
         return f"<Variable token={self.token} points_to={repr(self.points_to)}"

@@ -100,7 +100,7 @@ def process_import(element):
 
         if hasattr(element, 'module') and element.module:
             rhs = djoin(element.module, rhs)
-        ret.append(Variable(token, points_to=rhs, line_number=element.lineno))
+        ret.append(Variable(token, points_to=rhs, line_number=element.lineno, is_import=True))
     return ret
 
 
