@@ -31,9 +31,9 @@ def get_call_from_func_element(func):
             owner_token = djoin(*reversed(owner_token))
         else:
             owner_token = OWNER_CONST.UNKNOWN_VAR
-        return Call(token=func.attr, line_number=func.lineno, owner_token=owner_token)
+        return Call(token=func.attr, line_number=func.lineno, owner_token=owner_token, start_offset=func.col_offset, end_offset=func.end_col_offset)
     if type(func) == ast.Name:
-        return Call(token=func.id, line_number=func.lineno)
+        return Call(token=func.id, line_number=func.lineno, start_offset=func.col_offset, end_offset=func.end_col_offset)
     if type(func) in (ast.Subscript, ast.Call):
         return None
 

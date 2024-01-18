@@ -186,11 +186,13 @@ class Call():
 
     """
 
-    def __init__(self, token, line_number=None, owner_token=None, definite_constructor=False):
+    def __init__(self, token, line_number=None, owner_token=None, definite_constructor=False, start_offset=None, end_offset=None):
         self.token = token
         self.owner_token = owner_token
         self.line_number = line_number
         self.definite_constructor = definite_constructor
+        self.start_offset = start_offset
+        self.end_offset = end_offset
 
     def __repr__(self):
         return f"<Call owner_token={self.owner_token} token={self.token}>"
