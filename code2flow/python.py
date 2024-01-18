@@ -214,11 +214,17 @@ class Python(BaseLanguage):
 
         import_tokens = []
         if parent.group_type == GROUP_TYPE.FILE:
-            import_tokens = [djoin(parent.token, token)]
+            import_tokens= [djoin(parent.token, token)]
 
-        return [Node(token, calls, variables, parent, import_tokens=import_tokens,
-                     line_number=line_number, is_constructor=is_constructor,
-                     token_type=type(tree), definition=definition, docstring=ast.get_docstring(tree))]
+        return [
+            Node(
+                token, calls, variables, parent, import_tokens=import_tokens,
+                line_number=line_number, is_constructor=is_constructor,
+                token_type=type(tree), definition=definition, docstring=ast.get_docstring(tree),
+                end_line_number=tree.end_lineno, start_offset=tree.col_offset,
+                end_offset=tree.end_col_offset,
+            )
+        ]
 
     @staticmethod
     def make_root_node(lines, parent):

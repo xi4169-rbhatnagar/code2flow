@@ -265,7 +265,8 @@ class Call():
 
 class Node():
     def __init__(self, token, calls, variables, parent, token_type: type, import_tokens=None,
-                 line_number=None, is_constructor=False, definition=None, docstring=None):
+                 line_number=None, is_constructor=False, definition=None, docstring=None,
+                 end_line_number: int = None, start_offset: int = None, end_offset: int = None):
         self.token = token
         self.line_number = line_number
         self.calls = calls
@@ -276,6 +277,9 @@ class Node():
         self.token_type = token_type
         self.definition = definition
         self.docstring = docstring
+        self.end_line_number = end_line_number
+        self.start_offset = start_offset
+        self.end_offset = end_offset
 
         self.uid = "node_" + os.urandom(4).hex()
 
