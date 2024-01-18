@@ -397,7 +397,10 @@ class Node():
         """
         for variable in self.variables:
             if isinstance(variable.points_to, str):
+                earlier_point = variable.points_to
                 variable.points_to = _resolve_str_variable(variable, file_groups)
+                if variable.points_to == OWNER_CONST.UNKNOWN_MODULE or variable.points_to is None:
+                    variable.points_to = earlier_point
             elif isinstance(variable.points_to, Call):
                 # else, this is a call variable
                 call = variable.points_to
