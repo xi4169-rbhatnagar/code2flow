@@ -676,3 +676,20 @@ class Group():
                                        subgroup.to_dot().split('\n'))).strip() + '\n'
         ret += '};\n'
         return ret
+
+
+class Definition:
+    def __init__(self, start_offset: int, end_offset: int, start_line_number: int, end_line_number: int):
+        self.start_offset = start_offset
+        self.end_offset: int = end_offset
+        self.start_line_number: int = start_line_number
+        self.end_line_number: int = end_line_number
+
+    def __dict__(self):
+        return dict(start_offset=self.start_offset, end_offset=self.end_offset,
+                    start_line_number=self.start_line_number, end_line_number=self.end_line_number)
+
+    def __str__(self):
+        return str(self.__dict__())
+
+    __repr__ = __str__

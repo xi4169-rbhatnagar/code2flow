@@ -3,7 +3,7 @@ import logging
 import os
 
 from .model import (OWNER_CONST, GROUP_TYPE, Group, Node, Call, Variable,
-                    BaseLanguage, djoin)
+                    BaseLanguage, Definition, djoin)
 
 
 def get_call_from_func_element(func):
@@ -140,6 +140,11 @@ def get_inherits(tree):
     return [base.id for base in tree.bases if type(base) == ast.Name]
 
 
+def get_definition_from_lines(lines):
+    return [Definition(start_offset=line.col_offset, end_offset=line.end_col_offset, start_line_number=line.lineno,
+                       end_line_number=line.end_lineno) for line in lines]
+
+
 class Python(BaseLanguage):
     @staticmethod
     def assert_dependencies():
@@ -240,7 +245,8 @@ class Python(BaseLanguage):
         line_number = 0
         calls = make_calls(lines)
         variables = make_local_variables(lines, parent)
-        return Node(token, calls, variables, line_number=line_number, parent=parent, token_type="PackageCode")
+        return Node(token, calls, variables, line_number=line_number, parent=parent, token_type="PackageCode",
+                    definition=get_definition_from_lines(lines))
 
     @staticmethod
     def make_class_group(tree, parent, file_content):
