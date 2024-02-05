@@ -98,6 +98,25 @@ def process_with(element):
     return calls, variables
 
 
+def process_for(element):
+    points_to = None
+    if type(element.iter) == ast.Name:
+        points_to = element.iter.id
+    elif type(element.iter) == ast.Call:
+        points_to = get_call_from_func_element(element.iter.func)
+    elif type(element.iter) == ast.Attribute:
+        points_to = get_call_from_func_element(element.iter)
+
+    ret = []
+    if type(element.target) == ast.Name:
+        ret.append(Variable(token=element.target.id, points_to=points_to, line_number=element.target.lineno))
+    elif type(element.target) in (ast.Tuple, ast.List):
+        for t in element.target.elts:
+            ret.append(Variable(token=t.id, points_to=points_to, line_number=t.lineno))
+
+    return ret
+
+
 def process_assign(element):
     """
     Given an element from the ast which is an assignment statement, return a
@@ -163,6 +182,8 @@ def make_local_variables(lines, parent):
                 variables += process_assign(element)
             if type(element) in (ast.Import, ast.ImportFrom):
                 variables += process_import(element)
+            if type(element) in (ast.For, ast.AsyncFor):
+                variables += process_for(element)
     if parent.group_type == GROUP_TYPE.CLASS:
         variables.append(Variable('self', parent, lines[0].lineno))
 
