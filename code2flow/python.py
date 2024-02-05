@@ -77,17 +77,24 @@ def process_with(element):
     calls = []
     variables = []
     for item in element.items:
-        if item.optional_vars is not None:
-            var_name = item.optional_vars.id
-            points_to = None
-            if type(item.context_expr) == ast.Name:
-                points_to = item.context_expr.id
-            elif type(item.context_expr) == ast.Call:
-                call = get_call_from_func_element(item.context_expr.func)
-                if call:
-                    calls.append(call)
-                    points_to = call
-            variables.append(Variable(token=var_name, points_to=points_to, line_number=element.lineno, is_import=False))
+        if item.optional_vars is None:
+            continue
+        var_names = []
+        if type(item.optional_vars) == ast.Name:
+            var_names.append(item.optional_vars.id)
+        else:
+            var_names.extend(elt.id for elt in item.optional_vars.elts)
+        points_to = None
+        if type(item.context_expr) == ast.Name:
+            points_to = item.context_expr.id
+        elif type(item.context_expr) == ast.Call:
+            call = get_call_from_func_element(item.context_expr.func)
+            if call:
+                calls.append(call)
+                points_to = call
+        variables.extend(
+            Variable(token=var_name, points_to=points_to, line_number=element.lineno, is_import=False) for var_name in
+            var_names)
     return calls, variables
 
 
