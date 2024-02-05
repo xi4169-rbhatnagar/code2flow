@@ -57,6 +57,40 @@ def make_calls(lines):
     return calls
 
 
+def make_with_calls_and_variables(lines, parent):
+    all_calls = []
+    all_variables = []
+    for tree in lines:
+        for element in ast.walk(tree):
+            if type(element) in (ast.With, ast.AsyncWith):
+                calls, vars = process_with(element)
+                all_calls.extend(filter(bool, all_calls))
+                all_variables.extend(filter(bool, vars))
+
+    if parent.group_type == GROUP_TYPE.CLASS:
+        all_variables.append(Variable('self', parent, lines[0].lineno))
+
+    return all_calls, all_variables
+
+
+def process_with(element):
+    calls = []
+    variables = []
+    for item in element.items:
+        if item.optional_vars is not None:
+            var_name = item.optional_vars.id
+            points_to = None
+            if type(item.context_expr) == ast.Name:
+                points_to = item.context_expr.id
+            elif type(item.context_expr) == ast.Call:
+                call = get_call_from_func_element(item.context_expr.func)
+                if call:
+                    calls.append(call)
+                    points_to = call
+            variables.append(Variable(token=var_name, points_to=points_to, line_number=element.lineno, is_import=False))
+    return calls, variables
+
+
 def process_assign(element):
     """
     Given an element from the ast which is an assignment statement, return a
@@ -220,6 +254,11 @@ class Python(BaseLanguage):
         import_tokens = []
         if parent.group_type == GROUP_TYPE.FILE:
             import_tokens= [djoin(parent.token, token)]
+
+        # Process with statements:
+        with_calls, with_variables = make_with_calls_and_variables(tree.body, parent)
+        variables += with_variables
+        calls += with_calls
 
         return [
             Node(
