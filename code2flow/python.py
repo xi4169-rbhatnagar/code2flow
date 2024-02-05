@@ -276,7 +276,7 @@ class Python(BaseLanguage):
             is_constructor = True
 
         definition = None
-        if type(tree) in (ast.FunctionDef, ast.ClassDef) and file_content is not None:
+        if type(tree) in (ast.FunctionDef, ast.ClassDef, ast.AsyncFunctionDef) and file_content is not None:
             definition = ast.get_source_segment(file_content, tree)
 
         import_tokens = []
