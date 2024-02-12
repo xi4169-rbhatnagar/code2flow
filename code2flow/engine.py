@@ -8,12 +8,12 @@ import subprocess
 import sys
 import time
 
-from .python import Python
 from .javascript import Javascript
-from .ruby import Ruby
-from .php import PHP
 from .model import (TRUNK_COLOR, LEAF_COLOR, NODE_COLOR, GROUP_TYPE, OWNER_CONST,
                     Edge, Group, Node, Variable, is_installed, flatten)
+from .php import PHP
+from .python import Python
+from .ruby import Ruby
 
 VERSION = '2.5.2'
 
@@ -350,7 +350,13 @@ def make_file_group(tree, filepath, extension):
     display_name = 'File'
     import_tokens = language.file_import_tokens(filepath)
 
-    file_group = Group(token, group_type, display_name, import_tokens, line_number, parent=None, file_path=filepath, docstring=ast.get_docstring(tree))
+    docstring = []
+    try:
+        docstring = ast.get_docstring(tree)
+    except:
+        pass
+    file_group = Group(token, group_type, display_name, import_tokens, line_number, parent=None, file_path=filepath,
+                       docstring=docstring)
     with open(filepath, 'r') as fh:
         file_content = fh.read()
     for node_tree in node_trees:

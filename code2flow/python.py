@@ -31,9 +31,11 @@ def get_call_from_func_element(func):
             owner_token = djoin(*reversed(owner_token))
         else:
             owner_token = OWNER_CONST.UNKNOWN_VAR
-        return Call(token=func.attr, line_number=func.lineno, owner_token=owner_token, start_offset=func.col_offset, end_offset=func.end_col_offset)
+        return Call(token=func.attr, line_number=func.lineno, owner_token=owner_token, start_offset=func.col_offset,
+                    end_offset=func.end_col_offset)
     if type(func) == ast.Name:
-        return Call(token=func.id, line_number=func.lineno, start_offset=func.col_offset, end_offset=func.end_col_offset)
+        return Call(token=func.id, line_number=func.lineno, start_offset=func.col_offset,
+                    end_offset=func.end_col_offset)
     if type(func) in (ast.Subscript, ast.Call):
         return None
 
@@ -152,7 +154,9 @@ def process_import(element):
     :rtype: Variable
     """
     ret = []
-
+    level = None
+    if isinstance(element, ast.ImportFrom):
+        level = element.level
     for single_import in element.names:
         assert isinstance(single_import, ast.alias)
         token = single_import.asname or single_import.name
@@ -160,7 +164,8 @@ def process_import(element):
 
         if hasattr(element, 'module') and element.module:
             rhs = djoin(element.module, rhs)
-        ret.append(Variable(token, points_to=rhs, line_number=element.lineno, is_import=True))
+        ret.append(Variable(token, points_to=rhs, line_number=element.lineno, is_import=True, level=level,
+                            aliased=single_import.asname is not None))
     return ret
 
 
@@ -281,7 +286,7 @@ class Python(BaseLanguage):
 
         import_tokens = []
         if parent.group_type == GROUP_TYPE.FILE:
-            import_tokens= [djoin(parent.token, token)]
+            import_tokens = [djoin(parent.token, token)]
 
         # Process with statements:
         with_calls, with_variables = make_with_calls_and_variables(tree.body, parent)
