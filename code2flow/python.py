@@ -108,6 +108,8 @@ def process_for(element):
         points_to = get_call_from_func_element(element.iter.func)
     elif type(element.iter) == ast.Attribute:
         points_to = get_call_from_func_element(element.iter)
+    else:
+        points_to = 'Unknown_Var'
 
     ret = []
     if type(element.target) == ast.Name:
