@@ -230,7 +230,7 @@ class PHP(BaseLanguage):
     @staticmethod
     def assert_dependencies():
         """Assert that php and php-parser are installed"""
-        assert is_installed('php'), "No php installation could be found"
+        assert is_installed('php') or is_installed('php.exe'), "No php installation could be found"
         self_ref = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                 "get_ast.php")
         outp, returncode = run_ast_parser(self_ref)
@@ -296,7 +296,7 @@ class PHP(BaseLanguage):
         return groups, nodes, body
 
     @staticmethod
-    def make_nodes(tree, parent):
+    def make_nodes(tree, parent, file_content=None):
         """
         Given a tree element of all the lines in a function, create the node along
         with the calls and variables internal to it.
@@ -328,7 +328,7 @@ class PHP(BaseLanguage):
             import_tokens = [token]
 
         node = Node(token, calls, variables, parent, import_tokens=import_tokens,
-                    is_constructor=is_constructor, line_number=lineno(tree))
+                    is_constructor=is_constructor, line_number=lineno(tree), token_type=type(tree))
 
         subnodes = flatten([PHP.make_nodes(t, parent) for t in subnode_trees])
         return [node] + subnodes
@@ -348,7 +348,7 @@ class PHP(BaseLanguage):
         calls = make_calls(lines)
         variables = make_local_variables(lines, parent)
         root_node = Node(token, calls, variables, parent,
-                         line_number=line_number)
+                         line_number=line_number, token_type='PackageCode')
         return root_node
 
     @staticmethod
