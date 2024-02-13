@@ -183,6 +183,8 @@ def make_local_variables(tree_el, parent):
                 token = use['alias']['name'] if use['alias'] else owner_token
                 variables.append(Variable(token, points_to=owner_token,
                                           line_number=lineno(el)))
+        if el['nodeType'] == PHPIncludeExpr.type():
+            variables.append(PHPIncludeExpr(el).get_variable(parent))
 
     # Make a 'this'/'self' variable for use anywhere we need it that points to the class
     if isinstance(parent, Group) and parent.group_type in GROUP_TYPE.CLASS:
@@ -407,3 +409,95 @@ class PHP(BaseLanguage):
         :rtype: list[str]
         """
         return []
+
+
+class PHPIncludeExpr:
+    TYPE_UNKNOWN = 0
+    TYPE_INCLUDE = 1
+    TYPE_INCLUDE_ONCE = 2
+    TYPE_REQUIRE = 3
+    TYPE_REQUIRE_ONCE = 4
+
+    def __init__(self, d: dict):
+        assert isinstance(d, dict)
+        assert all(k in d for k in PHPIncludeExpr.sub_node_names())
+        self.expr = d.get('expr', dict())
+        self.type = d.get('type', PHPIncludeExpr.TYPE_UNKNOWN)
+        self.attrs = d.get('attributes', dict())
+
+    def get_variable(self, parent):
+        # getting points_to node
+        if self.expr.get('nodeType') == PHPScalarString.type():
+            points_to = PHPScalarString(self.expr).get_node(parent)
+        else:
+            raise NotImplementedError(f"unhandled import type {self.expr.get('nodeType')}")
+
+        return Variable(
+            token=f'import_{points_to}',
+            points_to=points_to,
+            line_number=self.attrs.get('startLine'),
+            is_import=True,
+        )
+
+    def _get_type(self):
+        if self.type == 1:
+            return PHPIncludeExpr.TYPE_INCLUDE
+        elif self.type == 2:
+            return PHPIncludeExpr.TYPE_INCLUDE_ONCE
+        elif self.type == 3:
+            return PHPIncludeExpr.TYPE_REQUIRE
+        elif self.type == 4:
+            return PHPIncludeExpr.TYPE_REQUIRE_ONCE
+        else:
+            return PHPIncludeExpr.TYPE_UNKNOWN
+
+    @staticmethod
+    def sub_node_names():
+        return ['expr', 'type']
+
+    @staticmethod
+    def type():
+        return 'Expr_Include'
+
+
+class PHPScalarString:
+    KIND_UNKNOWN = 0
+    KIND_SINGLE_QUOTED = 1
+    KIND_DOUBLE_QUOTED = 2
+    KIND_HEREDOC = 3
+    KIND_NOWDOC = 4
+
+    def __init__(self, d: dict):
+        assert isinstance(d, dict)
+        assert all(k in d for k in PHPScalarString.sub_node_names())
+        self.attrs = d.get('attributes', {})
+        self.start_line = self.attrs.get('startLine')
+        self.end_line = self.attrs.get('endLine')
+        self.kind = self._get_kind(self.attrs.get('kind'))
+        self.value = d.get('value')
+
+    @staticmethod
+    def _get_kind(kind_int):
+        if kind_int == 1:
+            return PHPScalarString.KIND_SINGLE_QUOTED
+        elif kind_int == 2:
+            return PHPScalarString.KIND_DOUBLE_QUOTED
+        elif kind_int == 3:
+            return PHPScalarString.KIND_HEREDOC
+        elif kind_int == 4:
+            return PHPScalarString.KIND_NOWDOC
+        return PHPScalarString.KIND_UNKNOWN
+
+    @staticmethod
+    def sub_node_names():
+        return ['value']
+
+    @staticmethod
+    def type():
+        return 'Scalar_String'
+
+    def get_node(self, parent):
+        return Node(token=self.value, calls=[], variables=[], parent=parent, token_type=PHPScalarString,
+                    import_tokens=None, line_number=self.start_line, is_constructor=False,
+                    definition=self.attrs.get('rawValue'), docstring=None, end_line_number=self.end_line,
+                    start_offset=None, end_offset=None)
